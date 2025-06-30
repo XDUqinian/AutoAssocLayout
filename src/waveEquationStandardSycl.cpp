@@ -15,7 +15,6 @@ const double c = 1.0f;   // 波速
 const int TIME_STEPS = 1000; // 时间步数
 
 int main() {
-    auto start_time = std::chrono::high_resolution_clock::now(); // 开始时间测量
     // 网格步长
     double dx = Lx / (NX - 1);
     double dy = Ly / (NY - 1);
@@ -36,17 +35,17 @@ int main() {
         for(int j = 0; j < NY; ++j) {
             double x = i * dx;
             double y = j * dy;
-            //u_prev[i * NY + j] = 1;
             u_prev[i * NY + j] = std::exp(-((x - Lx/2)*(x - Lx/2) + (y - Ly/2)*(y - Ly/2)) / (2 * sigma * sigma));
         }
     }
-
     
     // SYCL队列
     queue q(gpu_selector_v);
-    // cout << "Running on "
-    //      << q.get_device().get_info<info::device::name>() << "\n";
+    cout << "Running on "
+         << q.get_device().get_info<info::device::name>() << "\n";
     
+    double total_time=0;
+    auto total_start = std::chrono::high_resolution_clock::now();
     // 分配设备内存
     double *d_u_prev = malloc_device<double>(NX * NY, q);
     double *d_u_curr = malloc_device<double>(NX * NY, q);
@@ -58,15 +57,6 @@ int main() {
     
     // 主迭代循环
     for(int t = 0; t < TIME_STEPS; ++t) {
-        std::cout<<"step "<<t<<":\n";
-        std::cout<<"now cur:\n";
-        q.memcpy(u_curr.data(), d_u_curr, sizeof(double) * NX * NY).wait();
-        for(int i = 0; i < NX; i++){
-            for(int j = 0; j < NY; j++){
-                std::cout << u_curr[i * NX + j] << " " ;
-            }
-            std::cout << std::endl;
-        }
         q.submit([&](handler &h) {
             // 使用parallel_for来更新内部点
             h.parallel_for<class wave_compute>(
@@ -80,8 +70,6 @@ int main() {
                     
                     // 显式更新公式
                     d_u_next[i * NY + j] = 2.0f * d_u_curr[i * NY + j] - d_u_prev[i * NY + j] + (c * c) * (u_xx + u_yy) * dt * dt;
-                    // d_u_next[i * NY + j] = 2*d_u_prev[i * NY + j];
-                    
                 }
             );
         });
@@ -104,8 +92,6 @@ int main() {
         });
         
         q.wait();
-
-
         
         // 交换指针
         swap(d_u_prev, d_u_curr);
@@ -117,19 +103,20 @@ int main() {
         //     cout << "Step " << t << " completed.\n";
         //     // 这里可以添加保存或可视化代码
         // }
-
-        std::cout<<"next cur:\n";
-        q.memcpy(u_curr.data(), d_u_curr, sizeof(double) * NX * NY).wait();
-        for(int i = 0; i < NX; i++){
-            for(int j = 0; j < NY; j++){
-                std::cout << u_curr[i * NX + j] << " " ;
-            }
-            std::cout << std::endl;
-        }
     }
     
     // 复制结果回主机
     q.memcpy(u_curr.data(), d_u_curr, sizeof(double) * NX * NY).wait();
+    
+    auto total_end = std::chrono::high_resolution_clock::now();
+    total_time += std::chrono::duration<double>(total_end - total_start).count();
+    std::cout<<"total time: "<<total_time<<std::endl;
+    for(int i = 0; i < NX; i++){
+        for(int j = 0; j < NY; j++){
+            std::cout << u_curr[i * NX + j] << " " ;
+        }
+        std::cout << std::endl;
+    }
 
     // 释放设备内存
     free(d_u_prev, q);
@@ -138,8 +125,6 @@ int main() {
     
     // 输出最终结果的某些值作为示例
     cout << "Final wave state at center: " << u_curr[(NX/2)*NY + (NY/2)] << "\n";
-    auto end_time = std::chrono::high_resolution_clock::now(); // 结束时间测量
-    std::chrono::duration<double> duration = end_time - start_time; // 计算持续时间
-    std::cout << "总执行时间: " << duration.count() << " 秒" << std::endl; // 输出执行时间
+    
     return 0;
 }

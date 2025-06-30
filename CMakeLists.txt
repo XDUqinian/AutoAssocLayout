@@ -12,7 +12,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/dpcppLib/include)
 include_directories(/usr/include)
 
 set(REWRITER_SOURCES
-  rewriter/lib/dacInfo.cpp
+  rewriter/lib/sub_template.cpp
 )
 
 add_library(RewriterLib ${REWRITER_SOURCES})

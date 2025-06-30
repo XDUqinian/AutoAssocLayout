@@ -68,9 +68,6 @@ class DataReconstructor{
         sycl::buffer<int> block_shape_buffer;
         sycl::buffer<int> block_stride_buffer;
         sycl::buffer<int> block_move_buffer;
-
-        std::vector<int> mapTab;
-        sycl::buffer<int> mapTab_buffer;         // 用于在SYCL中传递 myIdx   
         DataReconstructor()
         : start_buffer(range<1>(1)),
           data_shape_buffer(range<1>(1)),
@@ -81,8 +78,7 @@ class DataReconstructor{
           grid_stride_buffer(range<1>(1)),
           block_shape_buffer(range<1>(1)),
           block_stride_buffer(range<1>(1)),
-          block_move_buffer(range<1>(1)),
-          mapTab_buffer(range<1>(1))
+          block_move_buffer(range<1>(1))
         {
 
         }
@@ -170,37 +166,34 @@ class DataReconstructor{
         /*
             将重组结果写入res长向量。
         */
-        void Reconstruct(sycl::queue& q){
+        void Reconstruct(ImplType* res, ImplType* myTensor, sycl::queue& q){
             auto block_size = this->block_size;
             auto dim_num = this->dim_num;
-            this->mapTab.resize(this->block_num * this->block_size, 0);
-            this->mapTab_buffer = sycl::buffer<int>(mapTab.begin(), mapTab.end());
             sycl::range<3> local(1, 1, this->block_num * this->block_size);
             sycl::range<3> global(1, 1, 1);
             q.submit([&](handler &h) {
-                auto acc_view_shape = this->view_shape_buffer.get_access<sycl::access::mode::read_write>(h);
-                auto acc_view_stride = this->view_stride_buffer.get_access<sycl::access::mode::read_write>(h);
-                auto acc_block_shape = this->block_shape_buffer.get_access<sycl::access::mode::read_write>(h);
-                auto acc_block_stride = this->block_stride_buffer.get_access<sycl::access::mode::read_write>(h);
-                auto acc_block_move = this->block_move_buffer.get_access<sycl::access::mode::read_write>(h);
-                auto acc_grid_shape = this->grid_shape_buffer.get_access<sycl::access::mode::read_write>(h);
-                auto acc_grid_stride = this->grid_stride_buffer.get_access<sycl::access::mode::read_write>(h);
-                auto acc_mapTab = this->mapTab_buffer.get_access<sycl::access::mode::read_write>(h);
+                auto acc_data_shape = data_shape_buffer.get_access<sycl::access::mode::read_write>(h);
+                auto acc_data_stride = data_stride_buffer.get_access<sycl::access::mode::read_write>(h);
+                auto acc_block_shape = block_shape_buffer.get_access<sycl::access::mode::read_write>(h);
+                auto acc_block_stride = block_stride_buffer.get_access<sycl::access::mode::read_write>(h);
+                auto acc_block_move = block_move_buffer.get_access<sycl::access::mode::read_write>(h);
+                auto acc_grid_shape = grid_shape_buffer.get_access<sycl::access::mode::read_write>(h);
+                auto acc_grid_stride = grid_stride_buffer.get_access<sycl::access::mode::read_write>(h);
+
                 h.parallel_for(sycl::nd_range<3>(global * local, local),[=](sycl::nd_item<3> item) {
                     const auto item_id = item.get_local_id(2);
                     int total_block_id = item_id / block_size;
                     int total_lane_id = item_id % block_size;
                     int lane_id[20];
                     int block_id[20];
-                    int view_pos = 0;
+                    int total_pos = 0;
                     for (int i = 0; i < dim_num; i++) {
                         lane_id[i] = total_lane_id / acc_block_stride[i] % acc_block_shape[i];
                         block_id[i] = total_block_id / acc_grid_stride[i] % acc_grid_shape[i];
-                        view_pos += (block_id[i] * acc_block_move[i] + lane_id[i]) * acc_view_stride[i];
+                        total_pos += (block_id[i] * acc_block_move[i] + lane_id[i]) * acc_data_stride[i];
                     }
 
-                    // res[item_id]=myTensor[total_pos];
-                    acc_mapTab[item_id]=view_pos;
+                    res[item_id]=myTensor[total_pos];
                 });
             }).wait();
         }

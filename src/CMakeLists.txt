@@ -18,36 +18,16 @@ set(OpenCL_LIBRARY "/data/qinian/share/intel/oneapi2025/compiler/latest/lib/libO
 include_directories(${SYCL_PATH})
 
 # 添加源文件
-# add_executable(wave.dac waveEquation.dac_sycl.cpp)
-# add_executable(wave.sycl waveEquationStandardSycl.cpp)
-add_executable(devicePackingTest devicePackingTest.sycl.cpp)
-# add_executable(DataReconstructor DataReconstructor.cpp)
-# add_executable(test test.cpp)
-add_executable(packingTest DataReconstructorTest.cpp)
+add_executable(DataRecon DataReconNewTest.sycl.cpp)
+add_executable(waveEq waveEquationStandardSycl.cpp)
 
-# set_target_properties(wave.dac PROPERTIES
-#     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/src
-# )
-# set_target_properties(wave.sycl PROPERTIES
-#     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/src
-# )
-set_target_properties(devicePackingTest PROPERTIES
+set_target_properties(DataRecon PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/src
 )
-# set_target_properties(DataReconstructor PROPERTIES
-#     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/src
-# )
-# set_target_properties(test PROPERTIES
-#     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/src
-# )
-set_target_properties(packingTest PROPERTIES
+set_target_properties(waveEq PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/src
 )
 
 # 链接库到可执行文件
-# target_link_libraries(wave.dac PRIVATE ${OpenCL_LIBRARY} sycl RewriterLib)
-# target_link_libraries(wave.sycl PRIVATE ${OpenCL_LIBRARY} sycl RewriterLib)
-target_link_libraries(devicePackingTest PRIVATE ${OpenCL_LIBRARY} sycl RewriterLib)
-# target_link_libraries(DataReconstructor PRIVATE ${OpenCL_LIBRARY} sycl RewriterLib)
-# target_link_libraries(test PRIVATE ${OpenCL_LIBRARY} sycl RewriterLib)
-target_link_libraries(packingTest PRIVATE ${OpenCL_LIBRARY} sycl RewriterLib)
+target_link_libraries(DataRecon PRIVATE ${OpenCL_LIBRARY} sycl RewriterLib)
+target_link_libraries(waveEq PRIVATE ${OpenCL_LIBRARY} sycl RewriterLib)
